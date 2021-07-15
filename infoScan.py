@@ -181,7 +181,7 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
 
     ## reg信息查询
     ipreg = IpRegData()
-    ipreg.run(q_targets, q_targets_ex, q_results)
+    ipreg.run(q_targets, q_targets_ex)
 
     ## {'scheme': None, 'host': 'https://mayfaircyprus.com/', 'port': None, 'ip': '104.21.78.238', 'ports_open': None, 'cidr': '104.21.0.0/16', 'asn': '13335', 'org': 'CLOUDFLARENET', 'addr': '美国', 'isp': '未知', 'cdn': 'exist'}
     ## cdn查询
@@ -192,8 +192,13 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     q_results.put('start ports scan')
     threads = [gevent.spawn(ports_open,
                         q_targets,queue_targets_origin, q_results) for _ in range(1000)]
-    gevent.joinall(threads) 
+    gevent.joinall(threads)
 
+    #while True:
+    #    try:
+    #        print(q_targets.get(timeout=0.2))
+    #    except queue.Empty:
+    #        break
     ## waf 探测
     #check_waf(queue_targets_origin, q_targets, q_results)
     threads = [gevent.spawn(check_waf,
@@ -250,48 +255,3 @@ if __name__ == '__main__':
     q_results.put('scan all done')
     ## 关闭管理标准输出的线程
     define.stop_me = True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
