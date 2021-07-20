@@ -45,7 +45,7 @@ def domain_lookup_check(queue_targets_origin, q_targets, q_results):
 
         try:
             ip = g_socket.gethostbyname(host)
-            target = {'scheme': None, 'host': url, 'port': None,
+            target = {'host': url,
                 'ip':ip, 'ports_open': None}
             q_targets.put(target)
         except Exception as e:
@@ -95,7 +95,6 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
             url = []
             waf = []
             for u in target['url']:
-                print(u)
                 try:
                     rs = requests.get(u, verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)# proxies = define.proxies
                     url.append(u)
