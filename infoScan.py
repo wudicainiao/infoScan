@@ -6,8 +6,9 @@ import sys
 import time
 import queue
 import gevent
+import requests
 import threading
-import grequests
+import difflib
 import multiprocessing
 from urllib.parse import urlparse
 from lib.config import define
@@ -17,6 +18,8 @@ from lib.ipreg import IpRegData
 from lib.report import report
 from lib.common import creat_xlsx,scan_given_ports,is_port_open
 from gevent import socket as g_socket
+import urllib3
+urllib3.disable_warnings()
 
 def domain_lookup_check(queue_targets_origin, q_targets, q_results):
     """
@@ -61,53 +64,106 @@ def check_cdn(q_targets, q_targets_ex, q_results, threads = 6):
     except Exception as e:
         q_results.put('Invalid cdn threads')
 
-
-def check_waf(q_targets, queue_targets_origin, q_results):
-    while True:
-        try:
-            target = queue_targets_origin.get_nowait()
-        except queue.Empty:
-            break
-
-
 def check_alive(q_targets, q_targets_ex, q_results, check_waf=False, threads = 50):
     try:
         all_threads = []
         for i in range(threads):
-            t = threading.Thread(target=iscdn, args=(q_targets, q_targets_ex, q_results, check_waf))
+            if check_waf:
+                t = threading.Thread(target=waf, args=(q_targets, q_targets_ex, q_results, check_waf))
+            else:
+                t = threading.Thread(target=alive, args=(q_targets, q_targets_ex, q_results, check_waf))
             t.start()
             all_threads.append(t)
         for t in all_threads:
             t.join()
-        q_results.put('ip info data search All done')
+        if check_waf:
+            q_results.put('waf test done')
+        else:
+            q_results.put('alive test done')
     except Exception as e:
-        q_results.put('Invalid cdn threads')
+        q_results.put('Invalid check_alive threads')
 
 
-def alive(q_targets, queue_targets_origin, q_results, check_waf):
-    proxies = {"http": "http://127.0.0.1:8080","https": "https://127.0.0.1:8080"}
+def alive(q_targets, q_targets_ex, q_results, check_waf):
     while True:
         try:
             target = q_targets.get_nowait()
         except queue.Empty:
             break
+        template ={}
         if type(target['url']) == list:
             url = []
+            waf = []
             for u in target['url']:
-                rs = grequests.map([grequests.get(u, allow_redirects=False, timeout=20, proxies=proxies)])[0]
-                if rs:
+                print(u)
+                try:
+                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)# proxies = define.proxies
                     url.append(u)
-                    template = rs.text
-                    print(template)
+                    template[u] = rs.text
+                except urllib3.exceptions.MaxRetryError:
+                    pass
+                except requests.exceptions.SSLError:
+                    pass
+                except requests.exceptions.ProxyError:
+                    pass
+                except:
+                    pass
+            target['url'] = url if url else None
+            target['template'] = template if url else None
+            q_targets_ex.put(target)
         else:
-            rs = grequests.map([grequests.get(target['url'], allow_redirects=False, timeout=20, proxies=proxies)])[0]
-            if rs:
-                print(target['url'])
-                template = rs.text
-                #if 'wiki' not in template:
-                print(template)
-            else:
+            try:
+                if 'Time out' in target['url']:
+                    target['url'] = None
+                    target['template'] = None
+                    q_targets_ex.put(target)
+                    continue
+                rs = requests.get(target['url'], verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)
+                template[target['url']] = rs.text
+                target['url'] = target['url']
+                target['template'] = template
+                q_targets_ex.put(target)
+            except urllib3.exceptions.MaxRetryError:
                 target['url'] = None
+                target['template'] = None
+                q_targets_ex.put(target)
+            except requests.exceptions.SSLError:
+                target['url'] = None
+                target['template'] = None
+                q_targets_ex.put(target)
+            except requests.exceptions.ProxyError:
+                target['url'] = None
+                target['template'] = None
+                q_targets_ex.put(target)
+
+def waf(q_targets, q_targets_ex, q_results, check_waf):
+    while True:
+        try:
+            target = q_targets_ex.get_nowait()
+        except queue.Empty:
+            break
+        waf = {}
+        if target['template']:
+            for u in target['template'].keys():
+                try:
+                    rs = requests.get(u, verify=False, headers=define.payload_headers, allow_redirects=False, timeout=3, proxies=define.proxies)
+                    if round(difflib.SequenceMatcher(None, target['template'][u], rs.text).quick_ratio(),3) < 0.5:
+                        waf[u] = 'True'
+                    else:
+                        waf[u] = 'False'
+                except urllib3.exceptions.MaxRetryError:
+                    pass
+                except requests.exceptions.SSLError:
+                    pass
+                except requests.exceptions.ProxyError:
+                    pass
+            target['template'] = None
+            target['waf'] = waf if waf else None
+            q_targets.put(target)
+        else:
+            target['template'] = None
+            target['waf'] = waf if waf else None
+            q_targets.put(target)
 
 def ports_open(q_targets,queue_targets_origin, q_results):
     while True:
@@ -235,16 +291,17 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
                         q_targets,queue_targets_origin, q_results) for _ in range(1000)]
     gevent.joinall(threads)
 
-    #while True:
-    #    try:
-    #        print(q_targets.get(timeout=0.2))
-    #    except queue.Empty:
-    #        break
-    ## waf 探测
-    #check_waf(queue_targets_origin, q_targets, q_results)
-
+    # 检测存活
     check_alive(q_targets, q_targets_ex, q_results)
 
+    #检测waf
+    check_alive(q_targets, q_targets_ex, q_results, check_waf=True)
+
+    while True:
+        try:
+            print(q_targets.get(timeout=0.2))
+        except queue.Empty:
+            break
 
 
     # target = {'scheme': None, 'host': target.strip(), 'port': None,
@@ -294,3 +351,4 @@ if __name__ == '__main__':
     q_results.put('scan all done')
     ## 关闭管理标准输出的线程
     define.stop_me = True
+
