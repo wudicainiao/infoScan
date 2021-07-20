@@ -61,12 +61,53 @@ def check_cdn(q_targets, q_targets_ex, q_results, threads = 6):
     except Exception as e:
         q_results.put('Invalid cdn threads')
 
+
 def check_waf(q_targets, queue_targets_origin, q_results):
     while True:
         try:
             target = queue_targets_origin.get_nowait()
         except queue.Empty:
             break
+
+
+def check_alive(q_targets, q_targets_ex, q_results, check_waf=False, threads = 50):
+    try:
+        all_threads = []
+        for i in range(threads):
+            t = threading.Thread(target=iscdn, args=(q_targets, q_targets_ex, q_results, check_waf))
+            t.start()
+            all_threads.append(t)
+        for t in all_threads:
+            t.join()
+        q_results.put('ip info data search All done')
+    except Exception as e:
+        q_results.put('Invalid cdn threads')
+
+
+def alive(q_targets, queue_targets_origin, q_results, check_waf):
+    proxies = {"http": "http://127.0.0.1:8080","https": "https://127.0.0.1:8080"}
+    while True:
+        try:
+            target = q_targets.get_nowait()
+        except queue.Empty:
+            break
+        if type(target['url']) == list:
+            url = []
+            for u in target['url']:
+                rs = grequests.map([grequests.get(u, allow_redirects=False, timeout=20, proxies=proxies)])[0]
+                if rs:
+                    url.append(u)
+                    template = rs.text
+                    print(template)
+        else:
+            rs = grequests.map([grequests.get(target['url'], allow_redirects=False, timeout=20, proxies=proxies)])[0]
+            if rs:
+                print(target['url'])
+                template = rs.text
+                #if 'wiki' not in template:
+                print(template)
+            else:
+                target['url'] = None
 
 def ports_open(q_targets,queue_targets_origin, q_results):
     while True:
@@ -201,10 +242,8 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     #        break
     ## waf 探测
     #check_waf(queue_targets_origin, q_targets, q_results)
-    threads = [gevent.spawn(check_waf,
-                        q_targets,queue_targets_origin, q_results) for _ in range(500)]
-    gevent.joinall(threads)
-    # check_waf(q_targets, q_targets_ex, q_results)
+
+    check_alive(q_targets, q_targets_ex, q_results)
 
 
 
