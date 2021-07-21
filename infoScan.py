@@ -128,7 +128,6 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                     target['template'] = None
                     q_targets_ex.put(target)
                     continue
-                print(target['url'])
                 rs = requests.get(target['url'], verify=False, allow_redirects=False, timeout=5, proxies = define.proxies)
                 template[target['url']] = rs.text
 
@@ -159,6 +158,11 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 q_targets_ex.put(target)
             except requests.exceptions.ProxyError:
                 q_results.put('[*]please check lib/config.py proxies')
+                target['title'] = None
+                target['url'] = None
+                target['template'] = None
+                q_targets_ex.put(target)
+            except:
                 target['title'] = None
                 target['url'] = None
                 target['template'] = None
