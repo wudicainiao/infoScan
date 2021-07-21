@@ -5,9 +5,6 @@ import openpyxl as ws
 from gevent import socket
 from lib.config import define
 
-
-
-
 def creat_xlsx(q_results):
     if os.path.exists(define.filename) == False:
         s = 0
@@ -57,7 +54,7 @@ def write_xlsx(q_targets, q_results):
 def is_port_open(host, port):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(3.0)
+        s.settimeout(5.0)
         if s.connect_ex((host, int(port))) == 0:
             return True
         else:
