@@ -105,6 +105,8 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                         title[u] = titles
                     else:
                         title[u] = '未识别title'
+                except socket.timeout:
+                    pass
                 except urllib3.exceptions.MaxRetryError:
                     pass
                 except requests.exceptions.SSLError:
@@ -137,6 +139,11 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 target['title'] = title
                 target['url'] = target['url']
                 target['template'] = template
+                q_targets_ex.put(target)
+            except socket.timeout:
+                target['title'] = None
+                target['url'] = None
+                target['template'] = None
                 q_targets_ex.put(target)
             except urllib3.exceptions.MaxRetryError:
                 target['title'] = None
@@ -171,6 +178,8 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
                         waf[u] = 'True'
                     else:
                         waf[u] = 'False'
+                except socket.timeout:
+                    pass
                 except urllib3.exceptions.MaxRetryError:
                     pass
                 except requests.exceptions.SSLError:
