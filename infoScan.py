@@ -2,6 +2,7 @@
 # by dacA1niao
 
 import os
+import re
 import sys
 import time
 import queue
@@ -16,7 +17,7 @@ from lib.check_cdn import iscdn
 from lib.ipasn import IPAsnInfo
 from lib.ipreg import IpRegData
 from lib.report import report
-from lib.common import creat_xlsx,scan_given_ports,is_port_open
+from lib.common import creat_xlsx,write_xlsx,scan_given_ports,is_port_open
 from gevent import socket as g_socket
 import urllib3
 urllib3.disable_warnings()
@@ -93,7 +94,6 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
         template ={}
         if type(target['url']) == list:
             url = []
-            waf = []
             for u in target['url']:
                 try:
                     rs = requests.get(u, verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)# proxies = define.proxies
@@ -142,6 +142,7 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
         except queue.Empty:
             break
         waf = {}
+        # target['template'] type(dict) url:template 
         if target['template']:
             for u in target['template'].keys():
                 try:
@@ -155,7 +156,7 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    pass
+                    q_results.put('访问%s时代理报错'%u)
             target['template'] = None
             target['waf'] = waf if waf else None
             q_targets.put(target)
@@ -317,7 +318,7 @@ if __name__ == '__main__':
         exit(-1)
 
     if sys.argv[1] == '--file':
-        creat_xlsx()
+        creat_xlsx(q_results)
         q_results.put('excel file created.')
         with open(sys.argv[2]) as inputfile:
             target_list = inputfile.readlines()
@@ -330,7 +331,7 @@ if __name__ == '__main__':
             p.start()
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
-
+        write_xlsx(q_targets)
 
         #p = multiprocessing.Process(
         #    target=prepare_targets,
