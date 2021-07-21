@@ -110,7 +110,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    pass
+                    q_results.put('[*]请查看 lib/config.py proxies配置是否生效')
                 except:
                     pass
             target['title'] = title if title else None
@@ -176,7 +176,7 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    q_results.put('[*]访问%s时代理报错'%u)
+                    q_results.put('[*]请查看 lib/config.py proxies配置是否生效')
             target['template'] = None
             target['waf'] = waf if waf else None
             q_targets.put(target)
