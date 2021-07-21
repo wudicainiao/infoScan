@@ -253,6 +253,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                 target['ports_open'] = ports_open
                 q_targets.put(target)
             elif ports_open and scheme:
+                #print('open host %s ports_open %s'%(host,ports_open))
                 target['url'] = scheme+'://'+host+':'+str(port)
                 target['ports_open'] = ports_open
                 q_targets.put(target)
@@ -263,6 +264,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                 target['ports_open'] = ports_open
                 q_targets.put(target)
             elif not ports_open:
+                #print('close host %s ports_open %s'%(host,ports_open))
                 target['url'] = 'Time out'
                 target['ports_open'] = 'Time out'
                 q_targets.put(target)
@@ -353,7 +355,7 @@ if __name__ == '__main__':
         exit(-1)
 
     if sys.argv[1] == '--file':
-        creat_xlsx(q_results)
+        #creat_xlsx(q_results)
         with open(sys.argv[2]) as inputfile:
             target_list = inputfile.readlines()
 
@@ -365,7 +367,7 @@ if __name__ == '__main__':
             p.start()
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
-        write_xlsx(q_targets, q_results)
+        #write_xlsx(q_targets, q_results)
 
     if sys.argv[1] == '--fofa':
         pass
