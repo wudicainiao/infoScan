@@ -92,6 +92,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
         except queue.Empty:
             break
         template ={}
+        title ={}
         if type(target['url']) == list:
             url = []
             for u in target['url']:
@@ -99,6 +100,11 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                     rs = requests.get(u, verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)# proxies = define.proxies
                     url.append(u)
                     template[u] = rs.text
+                    titles = re.findall(r"<title.*?>(.+?)</title>", rs.text)
+                    if titles:
+                        title[u] = titles
+                    else:
+                        title[u] = '未识别title'
                 except urllib3.exceptions.MaxRetryError:
                     pass
                 except requests.exceptions.SSLError:
@@ -107,30 +113,43 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                     pass
                 except:
                     pass
+            target['title'] = title if title else None
             target['url'] = url if url else None
             target['template'] = template if url else None
             q_targets_ex.put(target)
         else:
             try:
                 if 'Time out' in target['url']:
+                    target['title'] = None
                     target['url'] = None
                     target['template'] = None
                     q_targets_ex.put(target)
                     continue
                 rs = requests.get(target['url'], verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)
                 template[target['url']] = rs.text
+
+                titles = re.findall(r"<title.*?>(.+?)</title>", rs.text)
+                if titles:
+                    title[target['url']] = titles
+                else:
+                    title[target['url']] = '未识别title'
+
+                target['title'] = title
                 target['url'] = target['url']
                 target['template'] = template
                 q_targets_ex.put(target)
             except urllib3.exceptions.MaxRetryError:
+                target['title'] = None
                 target['url'] = None
                 target['template'] = None
                 q_targets_ex.put(target)
             except requests.exceptions.SSLError:
+                target['title'] = None
                 target['url'] = None
                 target['template'] = None
                 q_targets_ex.put(target)
             except requests.exceptions.ProxyError:
+                target['title'] = None
                 target['url'] = None
                 target['template'] = None
                 q_targets_ex.put(target)
@@ -295,11 +314,11 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     #检测waf
     check_alive(q_targets, q_targets_ex, q_results, check_waf=True)
 
-    while True:
-        try:
-            print(q_targets.get(timeout=0.2))
-        except queue.Empty:
-            break
+    # while True:
+    #     try:
+    #         print(q_targets.get(timeout=0.2))
+    #     except queue.Empty:
+    #         break
 
 
 if __name__ == '__main__':
@@ -331,7 +350,7 @@ if __name__ == '__main__':
             p.start()
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
-        write_xlsx(q_targets)
+        write_xlsx(q_targets, q_results)
 
         #p = multiprocessing.Process(
         #    target=prepare_targets,
