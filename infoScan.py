@@ -50,7 +50,7 @@ def domain_lookup_check(queue_targets_origin, q_targets, q_results):
                 'ip':ip, 'ports_open': None}
             q_targets.put(target)
         except Exception as e:
-            q_results.put('[*]Invalid domain error: %s' % e)
+            q_results.put('[*]Invalid domain error: %s host : %s' %(e,url))
 
 def check_cdn(q_targets, q_targets_ex, q_results, threads = 6):
     try:
