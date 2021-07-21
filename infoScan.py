@@ -269,17 +269,10 @@ def ports_open(q_targets,queue_targets_origin, q_results):
 
 
 def prepare_fofa_target(target_list, q_targets, q_results):
-    ## 该函数负责最终将处理完的target_list生成标准格式json加入q_targets以进行下一步扫描
-    ## 需要判断存活,file文件读取的通过db读取归属地
-    ## 从文件读取的
     pass
 
 
 def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
-    ## 该函数负责最终将处理完的target_list生成标准格式json加入q_targets以进行下一步扫描
-    ## 需要判断存活,file文件读取的通过db读取归属地
-    ## 从文件读取的
-
     from gevent.queue import Queue
     queue_targets_origin = Queue()
 
@@ -314,11 +307,6 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     #检测waf
     check_alive(q_targets, q_targets_ex, q_results, check_waf=True)
 
-    # while True:
-    #     try:
-    #         print(q_targets.get(timeout=0.2))
-    #     except queue.Empty:
-    #         break
 
 
 if __name__ == '__main__':
@@ -350,13 +338,6 @@ if __name__ == '__main__':
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
         write_xlsx(q_targets, q_results)
-
-        #p = multiprocessing.Process(
-        #    target=prepare_targets,
-        #    args=(target_list, q_targets, q_results, args, tasks_count, process_targets_done))
-        #p.daemon = True
-        #p.start()
-        #time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
 
     if sys.argv[1] == '--fofa':
         pass
