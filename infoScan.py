@@ -7,9 +7,10 @@ import sys
 import time
 import queue
 import gevent
+import socket
+import difflib
 import requests
 import threading
-import difflib
 import multiprocessing
 from urllib.parse import urlparse
 from lib.config import define
@@ -97,7 +98,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
             url = []
             for u in target['url']:
                 try:
-                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)# proxies = define.proxies
+                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=5, proxies = define.proxies)# proxies = define.proxies
                     url.append(u)
                     template[u] = rs.text
                     titles = re.findall(r"<title.*?>(.+?)</title>", rs.text)
@@ -112,7 +113,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    q_results.put('[*]请查看 lib/config.py proxies配置是否生效')
+                    q_results.put('[*]please check lib/config.py proxies')
                 except:
                     pass
             target['title'] = title if title else None
@@ -127,7 +128,8 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                     target['template'] = None
                     q_targets_ex.put(target)
                     continue
-                rs = requests.get(target['url'], verify=False, allow_redirects=False, timeout=3, proxies = define.proxies)
+                print(target['url'])
+                rs = requests.get(target['url'], verify=False, allow_redirects=False, timeout=5, proxies = define.proxies)
                 template[target['url']] = rs.text
 
                 titles = re.findall(r"<title.*?>(.+?)</title>", rs.text)
@@ -156,7 +158,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 target['template'] = None
                 q_targets_ex.put(target)
             except requests.exceptions.ProxyError:
-                q_results.put('[*]请查看 lib/config.py proxies配置是否生效')
+                q_results.put('[*]please check lib/config.py proxies')
                 target['title'] = None
                 target['url'] = None
                 target['template'] = None
@@ -185,7 +187,14 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    q_results.put('[*]请查看 lib/config.py proxies配置是否生效')
+                    q_results.put('[*]please check lib/config.py proxies')
+                except Exception as e:
+                    waf[u] = 'True'
+                    target['template'] = None
+                    target['waf'] = waf
+                    q_targets.put(target)
+                    q_results.put('[*]send payloads error exist waf %s' %u)
+                    continue
             target['template'] = None
             target['waf'] = waf if waf else None
             q_targets.put(target)
@@ -203,7 +212,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
 
         url = target['host']
         if url.find('://') < 0:
-            scheme = 'unknown'
+            scheme = None
             netloc = url[:url.find('/')] if url.find('/') > 0 else url
             path = ''
         else:
@@ -225,7 +234,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
         ports_open = set()
 
         ## 存在一种情况类似 127.0.0.1:1089 不会指定scheme
-        if scheme == 'unknown':
+        if not scheme:
             scheme = []
             scheme.append('https://')
             scheme.append('http://')
@@ -235,11 +244,17 @@ def ports_open(q_targets,queue_targets_origin, q_results):
             if ports_open and type(scheme) == list:
                 url = []
                 for sch in scheme:
-                    url.append(sch+host+':'+str(port))
+                    url.append(sch+'://'+host+':'+str(port))
                 target['url'] = url
                 target['ports_open'] = ports_open
                 q_targets.put(target)
+            elif ports_open and scheme:
+                target['url'] = scheme+'://'+host+':'+str(port)
+                target['ports_open'] = ports_open
+                q_targets.put(target)
             elif ports_open:
+                if type(ports_open) == list:
+                    q_results.put('ports_open 为列表')
                 target['url'] = scheme+'://'+host+':'+str(port)
                 target['ports_open'] = ports_open
                 q_targets.put(target)
@@ -316,7 +331,6 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
 
     #检测waf
     check_alive(q_targets, q_targets_ex, q_results, check_waf=True)
-
 
 
 if __name__ == '__main__':
