@@ -34,7 +34,7 @@ def write_xlsx(q_targets, q_results):
             target = q_targets.get(timeout=0.2)
         except queue.Empty:
             break
-    #second write row in memory
+        #second write row in memory
         sheet1 = wb['Sheet']
         num = sheet1.max_row
         sheet1.cell(row = num+1,column = 1,value = target['host'])
