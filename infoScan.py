@@ -149,6 +149,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 target['template'] = None
                 q_targets_ex.put(target)
             except requests.exceptions.ProxyError:
+                q_results.put('[*]请查看 lib/config.py proxies配置是否生效')
                 target['title'] = None
                 target['url'] = None
                 target['template'] = None
