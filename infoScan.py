@@ -50,7 +50,7 @@ def domain_lookup_check(queue_targets_origin, q_targets, q_results):
                 'ip':ip, 'ports_open': None}
             q_targets.put(target)
         except Exception as e:
-            q_results.put('Invalid domain error: %s' % e)
+            q_results.put('[*]Invalid domain error: %s' % e)
 
 def check_cdn(q_targets, q_targets_ex, q_results, threads = 6):
     try:
@@ -61,9 +61,9 @@ def check_cdn(q_targets, q_targets_ex, q_results, threads = 6):
             all_threads.append(t)
         for t in all_threads:
             t.join()
-        q_results.put('ip info data search All done')
+        q_results.put('[*]ip info data search All done')
     except Exception as e:
-        q_results.put('Invalid cdn threads')
+        q_results.put('[*]Invalid cdn threads')
 
 def check_alive(q_targets, q_targets_ex, q_results, check_waf=False, threads = 50):
     try:
@@ -78,11 +78,11 @@ def check_alive(q_targets, q_targets_ex, q_results, check_waf=False, threads = 5
         for t in all_threads:
             t.join()
         if check_waf:
-            q_results.put('waf test done')
+            q_results.put('[*]waf test done')
         else:
-            q_results.put('alive test done')
+            q_results.put('[*]alive test done')
     except Exception as e:
-        q_results.put('Invalid check_alive threads')
+        q_results.put('[*]Invalid check_alive threads')
 
 
 def alive(q_targets, q_targets_ex, q_results, check_waf):
@@ -175,7 +175,7 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    q_results.put('访问%s时代理报错'%u)
+                    q_results.put('[*]访问%s时代理报错'%u)
             target['template'] = None
             target['waf'] = waf if waf else None
             q_targets.put(target)
@@ -303,7 +303,7 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     check_cdn(q_targets, queue_targets_origin, q_results)
 
     ## portscan 
-    q_results.put('start ports scan')
+    q_results.put('[*]start ports scan')
     threads = [gevent.spawn(ports_open,
                         q_targets,queue_targets_origin, q_results) for _ in range(1000)]
     gevent.joinall(threads)
@@ -338,7 +338,6 @@ if __name__ == '__main__':
 
     if sys.argv[1] == '--file':
         creat_xlsx(q_results)
-        q_results.put('excel file created.')
         with open(sys.argv[2]) as inputfile:
             target_list = inputfile.readlines()
 
@@ -361,6 +360,6 @@ if __name__ == '__main__':
 
     if sys.argv[1] == '--fofa':
         pass
-    q_results.put('scan all done')
+    q_results.put('[*]scan all done')
     ## 关闭管理标准输出的线程
     define.stop_me = True
