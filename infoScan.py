@@ -279,11 +279,9 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     ipreg = IpRegData()
     ipreg.run(q_targets, q_targets_ex)
 
-    ## {'scheme': None, 'host': 'https://mayfaircyprus.com/', 'port': None, 'ip': '104.21.78.238', 'ports_open': None, 'cidr': '104.21.0.0/16', 'asn': '13335', 'org': 'CLOUDFLARENET', 'addr': '美国', 'isp': '未知', 'cdn': 'exist'}
     ## cdn查询
     check_cdn(q_targets, queue_targets_origin, q_results)
 
-    ## {'scheme': None, 'host': 'https://wiki.ioin.in/', 'port': None, 'ip': '128.1.135.62', 'ports_open': {443}, 'cidr': '128.1.135.0/24', 'asn': '135377', 'org': 'UCloud (HK) Holdings Group Limited', 'addr': '中国香港', 'isp': '层峰网络', 'cdn': 'may be real ip', 'url': 'https://wiki.ioin.in:443'}
     ## portscan 
     q_results.put('start ports scan')
     threads = [gevent.spawn(ports_open,
@@ -303,10 +301,6 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
             break
 
 
-    # target = {'scheme': None, 'host': target.strip(), 'port': None,
-    #            'ip':None, 'ports_open': None}
-
-
 if __name__ == '__main__':
     print(define.ORANGE+define.banner)
     
@@ -323,7 +317,7 @@ if __name__ == '__main__':
         exit(-1)
 
     if sys.argv[1] == '--file':
-        #creat_xlsx()
+        creat_xlsx()
         q_results.put('excel file created.')
         with open(sys.argv[2]) as inputfile:
             target_list = inputfile.readlines()
@@ -350,4 +344,3 @@ if __name__ == '__main__':
     q_results.put('scan all done')
     ## 关闭管理标准输出的线程
     define.stop_me = True
-
