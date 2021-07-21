@@ -40,6 +40,6 @@ Usage:
     python3 infoScan.py [options]
 
 Options:
-    -f  ip_domain_file        eg : python3 fofa-Keyspider.py -f url_ip.txt
+    -f  ip_domain_file        eg : python3 infoScan.py -f url_ip.txt
 '''
 
