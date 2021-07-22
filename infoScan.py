@@ -179,7 +179,7 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
         if target['template']:
             for u in target['template'].keys():
                 try:
-                    rs = requests.get(u, verify=False, headers=define.payload_headers, allow_redirects=False, timeout=3, proxies=define.proxies)
+                    rs = requests.get(u, verify=False, headers=define.payload_headers, allow_redirects=False, timeout=5, proxies=define.proxies)
                     if round(difflib.SequenceMatcher(None, target['template'][u], rs.text).quick_ratio(),3) < 0.5:
                         waf[u] = 'True'
                     else:
@@ -243,8 +243,26 @@ def ports_open(q_targets,queue_targets_origin, q_results):
             scheme.append('https://')
             scheme.append('http://')
 
+        scan_given_ports(host, ports_open, port)
+
+        # 127.0.0.1 127.0.0.1:8888 http://127.0.0.1 http://127.0.0.1:8080
         if port:
-            scan_given_ports(host, ports_open, port)
+            if int(port) == 80:
+                url = []
+                url.append('http://'+host+':80')
+                url.append('https://'+host+':443')
+                target['ports_open'] = ports_open
+                target['url'] = url
+                q_targets.put(target)
+                continue
+            elif int(port) == 443:
+                url = []
+                url.append('http://'+host+':80')
+                url.append('https://'+host+':443')
+                target['ports_open'] = ports_open
+                target['url'] = url
+                q_targets.put(target)
+                continue
             if ports_open and type(scheme) == list:
                 url = []
                 for sch in scheme:
@@ -259,11 +277,11 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                 q_targets.put(target)
             elif ports_open:
                 if type(ports_open) == list:
-                    q_results.put('ports_open 为列表')
+                    q_results.put('ports_open is list')
                 target['url'] = scheme+'://'+host+':'+str(port)
                 target['ports_open'] = ports_open
                 q_targets.put(target)
-            elif not ports_open:
+            else:
                 #print('close host %s ports_open %s'%(host,ports_open))
                 target['url'] = 'Time out'
                 target['ports_open'] = 'Time out'
@@ -275,7 +293,6 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                 ports_open.add('80')
             elif port_open_443:
                 ports_open.add('443')
-            scan_given_ports(host, ports_open)
             if ports_open:
                 if port_open_80 and port_open_443:
                     url = []
@@ -285,15 +302,21 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                     target['url'] = url
                     q_targets.put(target)
                 if port_open_80:
-                    target['url'] = 'http://'+host+':80'
+                    url = []
+                    url.append('http://'+host+':80')
+                    url.append('https://'+host+':443')
+                    target['url'] = url
                     target['ports_open'] = ports_open
                     q_targets.put(target)
                 elif port_open_443:
-                    target['url'] = 'https://'+host+':443'
+                    url = []
+                    url.append('http://'+host+':80')
+                    url.append('https://'+host+':443')
+                    target['url'] = url
                     target['ports_open'] = ports_open
                     q_targets.put(target)
             else:
-                target['url'] = 'Time out'
+                target['url'] = 'Time out' if url 
                 target['ports_open'] = 'Time out'
                 q_targets.put(target)
 
@@ -355,10 +378,9 @@ if __name__ == '__main__':
         exit(-1)
 
     if sys.argv[1] == '--file':
-        #creat_xlsx(q_results)
+        creat_xlsx(q_results)
         with open(sys.argv[2]) as inputfile:
             target_list = inputfile.readlines()
-
             ## 独立进程中使用gvent
             p = multiprocessing.Process(
                 target=prepare_file_target,
@@ -367,7 +389,7 @@ if __name__ == '__main__':
             p.start()
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
-        #write_xlsx(q_targets, q_results)
+        write_xlsx(q_targets, q_results)
 
     if sys.argv[1] == '--fofa':
         pass
