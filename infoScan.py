@@ -316,7 +316,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                     target['ports_open'] = ports_open
                     q_targets.put(target)
             else:
-                target['url'] = 'Time out' if url 
+                target['url'] = 'Time out'
                 target['ports_open'] = 'Time out'
                 q_targets.put(target)
 
