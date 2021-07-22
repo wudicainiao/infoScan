@@ -138,7 +138,6 @@ def iscdn(q_targets, q_targets_ex, q_results):
 
         for cdn in cdns:
             if ipaddress.ip_address(target['ip']) in ipaddress.ip_network(cdn):
-                print(target)
                 target['cdn'] = 'exist'
                 q_targets_ex.put(target)
                 continue
