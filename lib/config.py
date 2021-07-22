@@ -6,7 +6,7 @@ class define:
     stop_me = False
 
     ports = ['445','135','6379'] # 默认扫描端口
-    proxies = {"http": "http://127.0.0.1:1080","https": "https://127.0.0.1:1080"} ## socks5 代理
+    proxies = {"http": "http://127.0.0.1:1080","https": "https://127.0.0.1:1080"} ## 不使用代理配置为None 使用则配置为该格式{"http": "http://127.0.0.1:1080","https": "https://127.0.0.1:1080"}
     payload_headers = {
     'User':"1 AND 1=1 UNION ALL SELECT 1,NULL,'<script>alert(\"XSS\")</script>',table_name FROM information_schema.tables WHERE 2>1--/**/; EXEC xp_cmdshell('cat ../../../etc/passwd')#"}
     relative_directory = pathlib.Path(__file__).parent.parent  # 相对路径
