@@ -14,6 +14,7 @@ import threading
 import multiprocessing
 from urllib.parse import urlparse
 from lib.config import define
+from lib.cmdline import parse_args
 from lib.check_cdn import iscdn
 from lib.ipasn import IPAsnInfo
 from lib.ipreg import IpRegData
@@ -66,14 +67,14 @@ def check_cdn(q_targets, q_targets_ex, q_results, threads = 6):
     except Exception as e:
         q_results.put('[*]Invalid cdn threads')
 
-def check_alive(q_targets, q_targets_ex, q_results, check_waf=False, threads = 50):
+def check_alive(q_targets, q_targets_ex, q_results, args, check_waf=False, threads = 50):
     try:
         all_threads = []
         for i in range(threads):
             if check_waf:
-                t = threading.Thread(target=waf, args=(q_targets, q_targets_ex, q_results, check_waf))
+                t = threading.Thread(target=waf, args=(q_targets, q_targets_ex, q_results, args, check_waf))
             else:
-                t = threading.Thread(target=alive, args=(q_targets, q_targets_ex, q_results, check_waf))
+                t = threading.Thread(target=alive, args=(q_targets, q_targets_ex, q_results, args, check_waf))
             t.start()
             all_threads.append(t)
         for t in all_threads:
@@ -86,7 +87,7 @@ def check_alive(q_targets, q_targets_ex, q_results, check_waf=False, threads = 5
         q_results.put('[*]Invalid check_alive threads')
 
 
-def alive(q_targets, q_targets_ex, q_results, check_waf):
+def alive(q_targets, q_targets_ex, q_results, args, check_waf):
     while True:
         try:
             target = q_targets.get_nowait()
@@ -98,7 +99,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
             url = []
             for u in target['url']:
                 try:
-                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=5, proxies = define.proxies)# proxies = define.proxies
+                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=5, proxies = args.proxy)# proxies = define.proxies
                     url.append(u)
                     template[u] = rs.text
                     titles = re.findall(r"<title.*?>(.+?)</title>", rs.text)
@@ -168,7 +169,7 @@ def alive(q_targets, q_targets_ex, q_results, check_waf):
                 target['template'] = None
                 q_targets_ex.put(target)
 
-def waf(q_targets, q_targets_ex, q_results, check_waf):
+def waf(q_targets, q_targets_ex, q_results, args, check_waf):
     while True:
         try:
             target = q_targets_ex.get_nowait()
@@ -179,7 +180,7 @@ def waf(q_targets, q_targets_ex, q_results, check_waf):
         if target['template']:
             for u in target['template'].keys():
                 try:
-                    rs = requests.get(u, verify=False, headers=define.payload_headers, allow_redirects=False, timeout=5, proxies=define.proxies)
+                    rs = requests.get(u, verify=False, headers=define.payload_headers, allow_redirects=False, timeout=5, proxies=args.proxy)
                     if round(difflib.SequenceMatcher(None, target['template'][u], rs.text).quick_ratio(),3) < 0.5:
                         waf[u] = 'True'
                     else:
@@ -326,16 +327,17 @@ def prepare_fofa_target(target_list, q_targets, q_results):
     pass
 
 
-def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
+def prepare_file_target(target_list, q_targets, q_targets_ex, args, q_results):
     from gevent.queue import Queue
     queue_targets_origin = Queue()
+
 
     for target in target_list:
         queue_targets_origin.put(target.strip())
 
     ## 域名有效性判断，域名解析
     threads = [gevent.spawn(domain_lookup_check,
-                            queue_targets_origin,q_targets, q_results) for _ in range(500)]
+                            queue_targets_origin, q_targets, q_results) for _ in range(1000)]
     gevent.joinall(threads)
 
     ## asn等信息查询
@@ -356,15 +358,16 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, q_results):
     gevent.joinall(threads)
 
     # 检测存活
-    check_alive(q_targets, q_targets_ex, q_results)
+    check_alive(q_targets, q_targets_ex, q_results, args)
 
     #检测waf
-    check_alive(q_targets, q_targets_ex, q_results, check_waf=True)
+    check_alive(q_targets, q_targets_ex, q_results, args, check_waf=True)
 
 
 if __name__ == '__main__':
     print(define.ORANGE+define.banner)
-    
+    args = parse_args()
+
     q_targets = multiprocessing.Manager().Queue()    ## 用于在进程间进行队列通信
     q_targets_ex = multiprocessing.Manager().Queue()    ## 用于在进程间进行队列通信
     q_results = multiprocessing.Manager().Queue()    ## 用于在进程间进行队列通信
@@ -372,27 +375,20 @@ if __name__ == '__main__':
     ## 管理标准输出
     threading.Thread(target=report, args=(q_results,)).start()
 
-    if len(sys.argv) < 2:
-        print(define.ORANGE+define.usage)
-        define.stop_me = True
-        exit(-1)
-
-    if sys.argv[1] == '--file':
+    if args.file:
         creat_xlsx(q_results)
-        with open(sys.argv[2]) as inputfile:
+        with open(args.input_files) as inputfile:
             target_list = inputfile.readlines()
             ## 独立进程中使用gvent
             p = multiprocessing.Process(
                 target=prepare_file_target,
-                args=(target_list, q_targets, q_targets_ex, q_results))
+                args=(target_list, q_targets, q_targets_ex, args, q_results))
             p.daemon = True
             p.start()
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
         write_xlsx(q_targets, q_results)
 
-    if sys.argv[1] == '--fofa':
-        pass
     q_results.put('[*]scan all done')
     ## 关闭管理标准输出的线程
     define.stop_me = True
