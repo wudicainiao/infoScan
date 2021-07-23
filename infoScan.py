@@ -158,7 +158,7 @@ def alive(q_targets, q_targets_ex, q_results, args, check_waf):
                 target['template'] = None
                 q_targets_ex.put(target)
             except requests.exceptions.ProxyError:
-                q_results.put('[*]please check --proxy args')
+                q_results.put('[*]proxy error')
                 target['title'] = None
                 target['url'] = None
                 target['template'] = None
@@ -197,7 +197,7 @@ def waf(q_targets, q_targets_ex, q_results, args, check_waf):
                 except requests.exceptions.ProxyError:
                     waf[u] = 'True'
                     continue
-                    q_results.put('[*]please check --proxy args1')
+                    q_results.put('[*]proxy error')
                 except Exception as e:
                     waf[u] = 'True'
                     q_results.put('[*]send payloads error exist waf %s' %u)
