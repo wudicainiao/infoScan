@@ -114,7 +114,7 @@ def alive(q_targets, q_targets_ex, q_results, args, check_waf):
                 except requests.exceptions.SSLError:
                     pass
                 except requests.exceptions.ProxyError:
-                    q_results.put('[*]please check --proxy args')
+                    q_results.put('[*]proxy error')
                 except:
                     pass
             target['title'] = title if title else None
@@ -186,18 +186,20 @@ def waf(q_targets, q_targets_ex, q_results, args, check_waf):
                     else:
                         waf[u] = 'False'
                 except socket.timeout:
-                    pass
+                    waf[u] = 'True'
+                    continue
                 except urllib3.exceptions.MaxRetryError:
-                    pass
+                    waf[u] = 'True'
+                    continue
                 except requests.exceptions.SSLError:
-                    pass
+                    waf[u] = 'True'
+                    continue
                 except requests.exceptions.ProxyError:
-                    q_results.put('[*]please check --proxy args')
+                    waf[u] = 'True'
+                    continue
+                    q_results.put('[*]please check --proxy args1')
                 except Exception as e:
                     waf[u] = 'True'
-                    target['template'] = None
-                    target['waf'] = waf
-                    q_targets.put(target)
                     q_results.put('[*]send payloads error exist waf %s' %u)
                     continue
             target['template'] = None
