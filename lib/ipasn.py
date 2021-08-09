@@ -48,9 +48,6 @@ class IPAsnInfo:
         conn.close()
 
 
-
-
-
 if __name__ == "__main__":
     asn_info = IPAsnInfo()
     print(asn_info.find("188.81.94.77"))
