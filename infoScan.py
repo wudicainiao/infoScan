@@ -11,6 +11,7 @@ import socket
 import difflib
 import requests
 import threading
+import importlib
 import multiprocessing
 from urllib.parse import urlparse
 from lib.config import define
@@ -365,6 +366,94 @@ def prepare_file_target(target_list, q_targets, q_targets_ex, args, q_results):
     #检测waf
     check_alive(q_targets, q_targets_ex, q_results, args, check_waf=True)
 
+#from oneforall
+class Collect(object):
+    def __init__(self, domain, q_results, q_targets):
+        self.domain = domain
+        self.q_results = q_results
+        self.modules = []
+        self.collect_funcs = []
+        self.q_targets = q_targets
+
+    def get_mod(self):
+        """
+        Get modules
+        """
+        module = 'search'
+        module_path = define.module_dir.joinpath(module)
+        for path in module_path.rglob('*.py'):
+            import_module = f'modules.{module}.{path.stem}'
+            self.modules.append(import_module)
+
+    def import_func(self):
+        """
+        Import do function
+        """
+        for module in self.modules:
+            name = module.split('.')[-1]
+            import_object = importlib.import_module(module)
+            func = getattr(import_object, 'run')
+            self.collect_funcs.append([func, name])
+
+    def run(self):
+        """
+        Class entrance
+        """
+
+        q_results.put(f'Start collecting subdomains of {self.domain}')
+        self.get_mod()
+        self.import_func()
+        
+        threads = []
+        # Create subdomain collection threads
+        for func_obj, func_name in self.collect_funcs:
+            thread = threading.Thread(target=func_obj, name=func_name,
+                                      args=(self.domain, self.q_results, args, q_targets,), daemon=True)
+            threads.append(thread)
+        # Start all threads
+        for thread in threads:
+            thread.start()
+        # Wait for all threads to finish
+        for thread in threads:
+            # 挨个线程判断超时 最坏情况主线程阻塞时间=线程数*module_thread_timeout
+            # 超时线程将脱离主线程 由于创建线程时已添加守护属于 所有超时线程会随着主线程结束
+            thread.join(define.module_timeout)
+
+        for thread in threads:
+            if thread.is_alive():
+                q_results.put(f'{thread.name} module thread timed out')
+
+def host(target_list, args, q_results):
+    newlist = []
+    origin_list = []
+    for i in target_list:
+        url = i.strip()
+
+        if url.find('://') < 0:
+            netloc = url[:url.find('/')] if url.find('/') > 0 else url
+        else:
+            scheme, netloc, path, params, query, fragment = urlparse(url, 'http')
+
+        # host port
+        if netloc.find(':') >= 0:
+            _ = netloc.split(':')
+            host = _[0]
+        else:
+            host = netloc
+
+        if '.com.cn' in host:
+            host = host.split('.')[-3] + '.com.cn'
+        else:
+            host = host.split('.')[-2] + '.' + host.split('.')[-1]
+
+        if host not in newlist:
+            newlist.append(host)
+
+        if url not in origin_list:
+            origin_list.append(url)
+
+    return newlist,origin_list
+
 
 if __name__ == '__main__':
     print(define.ORANGE+define.banner)
@@ -379,6 +468,7 @@ if __name__ == '__main__':
 
     if args.file:
         creat_xlsx(q_results)
+
         with open(args.input_files) as inputfile:
             target_list = inputfile.readlines()
             ## 独立进程中使用gvent
@@ -389,7 +479,24 @@ if __name__ == '__main__':
             p.start()
             p.join()
             time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
+
         write_xlsx(q_targets, q_results)
+
+    if args.domain:
+        with open(args.input_files) as inputfile:
+            target_list, origin_list = host(inputfile.readlines(), args, q_results)
+        for domain in target_list:
+            collect = Collect(domain, q_results, q_targets)
+            collect.run()
+
+        subdomains = []
+        while True:
+            try:
+                target = q_targets.get_nowait()
+                subdomains.append(target)
+            except queue.Empty:
+                break
+        print(list(set(subdomains)))
 
     q_results.put('[*]scan all done')
     ## 关闭管理标准输出的线程
