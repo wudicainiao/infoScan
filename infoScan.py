@@ -487,7 +487,7 @@ if __name__ == '__main__':
     if args.domain:
         with open(args.input_files) as inputfile:
             target_list, origin_list = host(inputfile.readlines(), args, q_results)
-        print(target_list)
+
         for domain in target_list:
             collect = Collect(domain, q_results, q_targets)
             collect.run()
@@ -502,7 +502,6 @@ if __name__ == '__main__':
         with open('result.txt','a+') as f:
             for i in list(set(subdomains)):
                 f.write(i+'\n')
-        print(list(set(subdomains)))
 
         creat_xlsx(q_results)
         ## 独立进程中使用gvent
