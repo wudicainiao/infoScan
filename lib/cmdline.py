@@ -17,6 +17,8 @@ def parse_args():
     group_target = parser.add_argument_group('Targets')
     group_target.add_argument('--file', metavar='TargetFile', type=str, default='',
                               help='Load new line delimited targets from TargetFile')
+    group_target.add_argument('--domain', metavar='DomainFile', type=str, default='',
+                          help='Load new line delimited targets from DomainFile')
 
     group_http = parser.add_argument_group('HTTP proxy')
     group_http.add_argument('--proxy', metavar='Socks5', type=str, default=False, nargs='*',
@@ -29,6 +31,8 @@ def parse_args():
     check_args(args)
     if args.file:
         args.input_files = args.file
+    else:
+        args.input_files = args.domain
     if args.proxy:
         args.proxy = {"http": "http://%s"%args.proxy[0],"https": "https://%s"%args.proxy[0]}
 
@@ -36,9 +40,9 @@ def parse_args():
 
 
 def check_args(args):
-    if not (args.file):
+    if not args.file and not args.domain:
         msg = 'Args missing! One of following args should be specified  \n' \
-              '           -f TargetFile \n' 
+              '           --file TargetFile or --domian TargetFile \n' 
         print(msg)
         exit(-1)
 
