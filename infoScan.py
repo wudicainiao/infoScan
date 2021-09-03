@@ -305,7 +305,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                     target['ports_open'] = ports_open
                     target['url'] = url
                     q_targets.put(target)
-                if port_open_80:
+                elif port_open_80:
                     url = []
                     url.append('http://'+host+':80')
                     url.append('https://'+host+':443')
