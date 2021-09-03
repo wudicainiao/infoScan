@@ -267,7 +267,7 @@ def ports_open(q_targets,queue_targets_origin, q_results):
                 target['url'] = url
                 q_targets.put(target)
                 continue
-            if ports_open and type(scheme) == list:
+            elif ports_open and type(scheme) == list:
                 url = []
                 for sch in scheme:
                     url.append(sch+'://'+host+':'+str(port))
