@@ -440,11 +440,13 @@ def host(target_list, args, q_results):
             host = _[0]
         else:
             host = netloc
-
-        if '.com.cn' in host:
-            host = host.split('.')[-3] + '.com.cn'
-        else:
-            host = host.split('.')[-2] + '.' + host.split('.')[-1]
+        try:
+            if '.com.cn' in host:
+                host = host.split('.')[-3] + '.com.cn'
+            else:
+                host = host.split('.')[-2] + '.' + host.split('.')[-1]
+        except Exception as e:
+            q_results.put("Error target fomat : %s"%url)
 
         if host not in newlist:
             newlist.append(host)
@@ -485,6 +487,7 @@ if __name__ == '__main__':
     if args.domain:
         with open(args.input_files) as inputfile:
             target_list, origin_list = host(inputfile.readlines(), args, q_results)
+        print(target_list)
         for domain in target_list:
             collect = Collect(domain, q_results, q_targets)
             collect.run()
@@ -496,7 +499,21 @@ if __name__ == '__main__':
                 subdomains.append(target)
             except queue.Empty:
                 break
+        with open('result.txt','a+') as f:
+            for i in list(set(subdomains)):
+                f.write(i+'\n')
         print(list(set(subdomains)))
+
+        creat_xlsx(q_results)
+        ## 独立进程中使用gvent
+        p = multiprocessing.Process(
+            target=prepare_file_target,
+            args=(list(set(subdomains)), q_targets, q_targets_ex, args, q_results))
+        p.daemon = True
+        p.start()
+        p.join()
+        time.sleep(1.0)  # 让prepare_targets进程尽快开始执行
+        write_xlsx(q_targets, q_results)
 
     q_results.put('[*]scan all done')
     ## 关闭管理标准输出的线程
