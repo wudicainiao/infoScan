@@ -100,7 +100,7 @@ def alive(q_targets, q_targets_ex, q_results, args, check_waf):
             url = []
             for u in target['url']:
                 try:
-                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=5, proxies = args.proxy)# proxies = define.proxies
+                    rs = requests.get(u, verify=False, allow_redirects=False, timeout=20, proxies = args.proxy)# proxies = define.proxies
                     url.append(u)
                     template[u] = rs.text
                     titles = re.findall(r"<title.*?>(.+?)</title>", rs.text)
