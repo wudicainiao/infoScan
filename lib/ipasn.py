@@ -40,7 +40,7 @@ class IPAsnInfo:
                 cursor = c.execute(f"SELECT * FROM asn WHERE ip_from <= {ip} AND ip_to >= {ip} LIMIT 1;")
                 for s in cursor:
                     ipc = target['ip'].split('.')
-                    target['cidr'] = ipc[1] + '.' + ipc[2] + '.' + ipc[3] + '.0/24'
+                    target['cidr'] = ipc[0] + '.' + ipc[1] + '.' + ipc[2] + '.0/24'
                     target['asn'] = s[3]
                     target['org'] = s[4]
                 q_targets_ex.put(target)
