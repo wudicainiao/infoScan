@@ -22,7 +22,7 @@ def parse_args():
 
     group_http = parser.add_argument_group('HTTP proxy')
     group_http.add_argument('--proxy', metavar='Socks5', type=str, default=False, nargs='*',
-                            help='http/https Socks5 proxy.')
+                            help='Socks5 proxy. eg : 127.0.0.1:1080')
 
     if len(sys.argv) == 1:
         sys.argv.append('-h')
@@ -34,7 +34,7 @@ def parse_args():
     else:
         args.input_files = args.domain
     if args.proxy:
-        args.proxy = {"http": "http://%s"%args.proxy[0],"https": "https://%s"%args.proxy[0]}
+        args.proxy = {"http": "Socks5://%s"%args.proxy[0],"https": "Socks5://%s"%args.proxy[0]}
 
     return args
 
